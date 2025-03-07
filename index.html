@@ -5,11 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cumulative Input Timer</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    button { padding: 10px; margin: 5px; }
-    .timer-display { font-size: 2em; margin: 20px 0; }
-    .analytics { margin-top: 20px; }
-    .percentage { font-size: 1.5em; font-weight: bold; margin-top: 10px; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f9f4ef;
+    }
+    button {
+      padding: 10px;
+      margin: 5px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    .timer-display {
+      font-size: 2em;
+      margin: 20px 0;
+    }
+    .analytics {
+      margin-top: 20px;
+    }
+    .percentage {
+      font-size: 1.5em;
+      font-weight: bold;
+      margin-top: 10px;
+    }
     .badge {
       margin-top: 10px;
       padding: 5px;
@@ -19,7 +37,42 @@
       margin-right: 5px;
       margin-bottom: 5px;
     }
-    .custom-input { margin: 10px 5px; }
+    .custom-input {
+      margin: 10px 5px;
+    }
+    /* Steampunk decal (simple gear background on the body) */
+    body::before {
+      content: "";
+      position: fixed;
+      right: 10px;
+      top: 10px;
+      width: 100px;
+      height: 100px;
+      opacity: 0.15;
+      background: url('https://upload.wikimedia.org/wikipedia/commons/3/3f/Cog-font-awesome.svg') no-repeat center center;
+      background-size: contain;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Stopwatch widget styles */
+    .stopwatch-container {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 220px;
+      padding: 10px;
+      border: 2px dashed #b5651d;
+      background-color: #f3ecc2;
+      border-radius: 8px;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    }
+    .stopwatch-display {
+      font-size: 1.5em;
+      margin-bottom: 10px;
+      text-align: center;
+      color: #4d2c0c;
+    }
   </style>
 </head>
 <body>
@@ -32,7 +85,7 @@
 </div>
 
 <!-- Timer App Section (hidden until signed in) -->
-<div id="timerSection" style="display:none;">
+<div id="timerSection" style="display:none; position: relative;">
   <div class="timer-display" id="timerDisplay">0 mins</div>
   <div>
     <button id="add1">+1 min</button>
@@ -52,6 +105,17 @@
     <div id="streak"></div>
     <div id="badges"></div>
   </div>
+
+  <!-- Stopwatch widget -->
+  <div class="stopwatch-container" id="stopwatchContainer">
+    <div class="stopwatch-display" id="stopwatchDisplay">00:00</div>
+    <button id="startStopwatch">Start</button>
+    <button id="stopStopwatch">Stop</button>
+    <button id="resetStopwatch">Reset</button>
+    <br>
+    <button id="commitStopwatch">Commit Time</button>
+  </div>
+
 </div>
 
 <script type="module">
@@ -261,8 +325,67 @@
     }
   });
 
+  // ---------------------------------------------------
+  // STOPWATCH LOGIC
+  // ---------------------------------------------------
+  let stopwatchInterval = null;
+  let stopwatchSeconds = 0;
+
+  const stopwatchDisplay = document.getElementById("stopwatchDisplay");
+  const startBtn = document.getElementById("startStopwatch");
+  const stopBtn = document.getElementById("stopStopwatch");
+  const resetBtn = document.getElementById("resetStopwatch");
+  const commitBtn = document.getElementById("commitStopwatch");
+
+  function updateStopwatchDisplay() {
+    // Convert total seconds into mm:ss
+    const m = Math.floor(stopwatchSeconds / 60);
+    const s = stopwatchSeconds % 60;
+    const mm = m < 10 ? "0" + m : m;
+    const ss = s < 10 ? "0" + s : s;
+    stopwatchDisplay.textContent = `${mm}:${ss}`;
+  }
+
+  function startStopwatch() {
+    if (stopwatchInterval) return; // already running
+    stopwatchInterval = setInterval(() => {
+      stopwatchSeconds++;
+      updateStopwatchDisplay();
+    }, 1000);
+  }
+
+  function stopStopwatch() {
+    if (stopwatchInterval) {
+      clearInterval(stopwatchInterval);
+      stopwatchInterval = null;
+    }
+  }
+
+  function resetStopwatch() {
+    stopStopwatch();
+    stopwatchSeconds = 0;
+    updateStopwatchDisplay();
+  }
+
+  function commitStopwatch() {
+    // Convert stopwatchSeconds to minutes (rounded down)
+    const minutes = Math.floor(stopwatchSeconds / 60);
+    if (minutes > 0) {
+      addTime(minutes);
+      alert(`Committed ${minutes} minute(s) to your overall timer.`);
+    } else {
+      alert("Stopwatch time is less than 1 minute; not added.");
+    }
+  }
+
+  startBtn.onclick = startStopwatch;
+  stopBtn.onclick = stopStopwatch;
+  resetBtn.onclick = resetStopwatch;
+  commitBtn.onclick = commitStopwatch;
+
   // Initialize the display from localStorage on page load.
   updateDisplay();
+  updateStopwatchDisplay();
 
   onAuthStateChanged(auth, (user) => {
     if (user) {
