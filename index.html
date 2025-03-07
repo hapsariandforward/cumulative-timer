@@ -63,11 +63,11 @@
   const auth = getAuth(appFirebase);
   const db = getFirestore(appFirebase);
   
-  // 4. Sign in anonymously (you can also set up Google Sign-In for a shared UID across devices)
+  // 4. Sign in anonymously (or set up Google Sign-In for cross-device syncing)
   signInAnonymously(auth).catch(err => console.error("Sign-in error:", err));
   
   let currentUserId = null;
-  // Load timer history from localStorage as a starting point
+  // Load timer history from localStorage initially (if available)
   let history = JSON.parse(localStorage.getItem('timerHistory')) || [];
   
   // 5. Define badge thresholds (spread over 60000 minutes = 1000 hours)
@@ -231,7 +231,10 @@
     }
   });
   
-  // 13. On authentication state change, load Firestore data and update UI
+  // 13. On DOMContentLoaded, immediately update display from localStorage data
+  updateDisplay();
+  
+  // 14. On authentication state change, load Firestore data and update UI
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       currentUserId = user.uid;
