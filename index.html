@@ -57,9 +57,15 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
   import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
-  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+  import {
+    getFirestore,
+    doc,
+    getDoc,
+    setDoc,
+    onSnapshot
+  } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
-  // Replace with your Firebase config if needed
+  // Replace with your own Firebase config if needed.
   const firebaseConfig = {
     apiKey: "AIzaSyC1Qwv5MIsxykfI8QNWXm7zy6A_yg7v2-k",
     authDomain: "cumulative-timer-app.firebaseapp.com",
@@ -90,8 +96,9 @@
   let currentUserId = null;
   // Load existing history from localStorage
   let history = JSON.parse(localStorage.getItem('timerHistory')) || [];
+  let unsubscribe = null; // We'll store the Firestore listener unsubscribe function.
 
-  // Badges
+  // Define the badges
   const badges = [
     { mins: 1800,  label: 'Pemula Ceria 😊' },
     { mins: 3550,  label: 'Pecinta Bahasa 💬' },
@@ -128,6 +135,7 @@
     { mins: 60000, label: 'Dewa Bahasa Sejati 🏆' }
   ];
 
+  // Save local changes to Firestore
   function saveHistory() {
     localStorage.setItem('timerHistory', JSON.stringify(history));
     if (currentUserId) {
@@ -136,22 +144,23 @@
     }
   }
 
-  async function loadHistoryFromFirestore() {
-    if (!currentUserId) return;
-    try {
-      const userDoc = doc(db, "timerData", currentUserId);
-      const snap = await getDoc(userDoc);
-      if (snap.exists()) {
-        history = snap.data().history || [];
+  // Listen for real-time changes using onSnapshot
+  function subscribeToHistory(uid) {
+    const userDoc = doc(db, "timerData", uid);
+    unsubscribe = onSnapshot(userDoc, (docSnap) => {
+      if (docSnap.exists()) {
+        history = docSnap.data().history || [];
         localStorage.setItem('timerHistory', JSON.stringify(history));
+        updateDisplay(); // Refresh UI any time data changes in Firestore
       } else {
         console.log("No data in Firestore for this user yet.");
       }
-    } catch (err) {
-      console.error("Error loading history from Firestore:", err);
-    }
+    }, (err) => {
+      console.error("Realtime listener error:", err);
+    });
   }
 
+  // Streak calculation
   function computeStreak() {
     const daysSet = new Set(history.map(entry => entry.date.split('T')[0]));
     let streak = 0;
@@ -168,12 +177,16 @@
     return streak;
   }
 
+  // Format minutes into hours + minutes
   function formatTime(minutes) {
     const hrs = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return hrs > 0 ? `${hrs} hr${hrs > 1 ? 's' : ''} ${mins} min${mins !== 1 ? 's' : ''}` : `${mins} min${mins !== 1 ? 's' : ''}`;
+    return hrs > 0
+      ? `${hrs} hr${hrs > 1 ? 's' : ''} ${mins} min${mins !== 1 ? 's' : ''}`
+      : `${mins} min${mins !== 1 ? 's' : ''}`;
   }
 
+  // Update UI based on current "history"
   function updateDisplay() {
     const totalMinutes = history.reduce((acc, entry) => acc + entry.minutes, 0);
     document.getElementById("timerDisplay").innerText = formatTime(totalMinutes);
@@ -190,11 +203,13 @@
     document.getElementById("progressPercentage").innerText = `Progress: ${percentage}% of goal`;
 
     const earnedBadges = badges.filter(badge => totalMinutes >= badge.mins);
-    document.getElementById("badges").innerHTML = earnedBadges.map(badge => `<div class="badge">${badge.label}</div>`).join("");
+    document.getElementById("badges").innerHTML = earnedBadges.map(b => `<div class="badge">${b.label}</div>`).join("");
 
+    // After updating the UI, we push changes to Firestore.
     saveHistory();
   }
 
+  // Standard Timer Functions
   function addTime(mins) {
     history.push({ minutes: mins, date: new Date().toISOString() });
     updateDisplay();
@@ -231,6 +246,7 @@
     input.value = "";
   }
 
+  // Hook up buttons
   document.getElementById("add1").onclick = () => addTime(1);
   document.getElementById("add5").onclick = () => addTime(5);
   document.getElementById("add15").onclick = () => addTime(15);
@@ -245,24 +261,32 @@
     }
   });
 
-  // On page load, immediately update display from localStorage data
+  // Initialize the display from localStorage on page load.
   updateDisplay();
 
-  // On authentication state change, load Firestore data and update UI
-  onAuthStateChanged(auth, async (user) => {
+  onAuthStateChanged(auth, (user) => {
     if (user) {
-      // Hide sign-in, show timer
+      // Hide sign-in, show timer.
       document.getElementById("authSection").style.display = "none";
       document.getElementById("timerSection").style.display = "block";
 
       currentUserId = user.uid;
       console.log("User ID:", currentUserId);
-      await loadHistoryFromFirestore();
-      updateDisplay();
+
+      // If we already had a listener, unsubscribe from it.
+      if (unsubscribe) unsubscribe();
+
+      // Subscribe to real-time updates for this user.
+      subscribeToHistory(currentUserId);
     } else {
-      // Show sign-in, hide timer
+      // If user logs out or not signed in, show sign-in.
       document.getElementById("authSection").style.display = "block";
       document.getElementById("timerSection").style.display = "none";
+      // Unsubscribe from changes if we had a listener.
+      if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = null;
+      }
     }
   });
 </script>
