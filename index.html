@@ -18,36 +18,41 @@
 
 <h2>Indonesian Comprehensible Input Timer</h2>
 
-<div class="timer-display" id="timerDisplay">0 mins</div>
-
-<div>
-  <button id="add1">+1 min</button>
-  <button id="add5">+5 mins</button>
-  <button id="add15">+15 mins</button>
-  <button id="add30">+30 mins</button>
-  <button id="add60">+1 hr</button>
-  <button id="undo">Undo</button>
-  <button id="reset">Reset Today</button>
-  <br>
-  <input class="custom-input" type="number" id="customTime" placeholder="Custom time in mins" min="1">
-  <button id="addCustom">Add Custom Time</button>
+<!-- Authentication Section -->
+<div id="authSection">
+  <button id="signInButton">Sign in with Google</button>
 </div>
 
-<div class="analytics">
-  <div class="percentage" id="progressPercentage"></div>
-  <p id="dailyAvg"></p>
-  <div id="streak"></div>
-  <div id="badges"></div>
+<!-- Timer App Section (hidden until signed in) -->
+<div id="timerSection" style="display:none;">
+  <div class="timer-display" id="timerDisplay">0 mins</div>
+  <div>
+    <button id="add1">+1 min</button>
+    <button id="add5">+5 mins</button>
+    <button id="add15">+15 mins</button>
+    <button id="add30">+30 mins</button>
+    <button id="add60">+1 hr</button>
+    <button id="undo">Undo</button>
+    <button id="reset">Reset Today</button>
+    <br>
+    <input class="custom-input" type="number" id="customTime" placeholder="Custom time in mins" min="1">
+    <button id="addCustom">Add Custom Time</button>
+  </div>
+  <div class="analytics">
+    <div class="percentage" id="progressPercentage"></div>
+    <p id="dailyAvg"></p>
+    <div id="streak"></div>
+    <div id="badges"></div>
+  </div>
 </div>
 
-<!-- Firebase and Timer App Code -->
 <script type="module">
-  // 1. Import Firebase modules from the CDN
+  // Import Firebase modules from the CDN
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
-  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
+  import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
   import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
-  
-  // 2. Firebase configuration (your unique configuration)
+
+  // Firebase configuration (replace with your own config if needed)
   const firebaseConfig = {
     apiKey: "AIzaSyC1Qwv5MIsxykfI8QNWXm7zy6A_yg7v2-k",
     authDomain: "cumulative-timer-app.firebaseapp.com",
@@ -57,20 +62,29 @@
     appId: "1:752490804648:web:64e54ee6dab6d75ad6599d",
     measurementId: "G-PTCS51X0SR"
   };
-  
-  // 3. Initialize Firebase
+
+  // Initialize Firebase
   const appFirebase = initializeApp(firebaseConfig);
   const auth = getAuth(appFirebase);
   const db = getFirestore(appFirebase);
-  
-  // 4. Sign in anonymously (or set up Google Sign-In for cross-device syncing)
-  signInAnonymously(auth).catch(err => console.error("Sign-in error:", err));
-  
+  const provider = new GoogleAuthProvider();
+
+  // Sign in with Google when button is clicked
+  document.getElementById("signInButton").onclick = () => {
+    signInWithPopup(auth, provider)
+      .then((result) => {
+        console.log("Signed in as:", result.user.displayName);
+      })
+      .catch((error) => {
+        console.error("Sign-in error:", error);
+      });
+  };
+
   let currentUserId = null;
   // Load timer history from localStorage initially (if available)
   let history = JSON.parse(localStorage.getItem('timerHistory')) || [];
-  
-  // 5. Define badge thresholds (spread over 60000 minutes = 1000 hours)
+
+  // Define badge thresholds (spread over 60000 minutes = 1000 hours)
   const badges = [
     { mins: 1800,  label: 'Pemula Ceria 😊' },
     { mins: 3550,  label: 'Pecinta Bahasa 💬' },
@@ -106,8 +120,8 @@
     { mins: 57550, label: 'Pangeran Progres 📈' },
     { mins: 60000, label: 'Dewa Bahasa Sejati 🏆' }
   ];
-  
-  // 6. Save history to localStorage and Firestore
+
+  // Save history to localStorage and Firestore
   function saveHistory() {
     localStorage.setItem('timerHistory', JSON.stringify(history));
     if (currentUserId) {
@@ -115,8 +129,8 @@
       setDoc(userDoc, { history }).catch(err => console.error("Error saving to Firestore:", err));
     }
   }
-  
-  // 7. Load history from Firestore
+
+  // Load history from Firestore
   async function loadHistoryFromFirestore() {
     if (!currentUserId) return;
     try {
@@ -132,8 +146,8 @@
       console.error("Error loading history from Firestore:", err);
     }
   }
-  
-  // 8. Compute daily streak: count consecutive days (including today) with at least one entry.
+
+  // Compute daily streak: count consecutive days (including today) with at least one entry.
   function computeStreak() {
     const daysSet = new Set(history.map(entry => entry.date.split('T')[0]));
     let streak = 0;
@@ -149,15 +163,15 @@
     }
     return streak;
   }
-  
-  // 9. Helper: format minutes into hours and minutes
+
+  // Helper: Format minutes into hours and minutes
   function formatTime(minutes) {
     const hrs = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return hrs > 0 ? `${hrs} hr${hrs > 1 ? 's' : ''} ${mins} min${mins !== 1 ? 's' : ''}` : `${mins} min${mins !== 1 ? 's' : ''}`;
   }
-  
-  // 10. Update the UI: timer, daily average, streak, progress, and badges
+
+  // Update the UI: Timer, daily average, streak, progress, and badges
   function updateDisplay() {
     const totalMinutes = history.reduce((acc, entry) => acc + entry.minutes, 0);
     document.getElementById("timerDisplay").innerText = formatTime(totalMinutes);
@@ -178,20 +192,20 @@
     
     saveHistory();
   }
-  
-  // 11. Functions to modify history and update the display
+
+  // Functions to modify history and update the display
   function addTime(mins) {
     history.push({ minutes: mins, date: new Date().toISOString() });
     updateDisplay();
   }
-  
+
   function undoLast() {
     if (history.length > 0) {
       history.pop();
       updateDisplay();
     }
   }
-  
+
   function resetTimer() {
     if (confirm("Are you sure you want to reset today's entries?")) {
       const today = new Date().toISOString().split("T")[0];
@@ -199,7 +213,7 @@
       updateDisplay();
     }
   }
-  
+
   function addCustomTime() {
     const input = document.getElementById("customTime");
     const customValue = input.value;
@@ -215,8 +229,8 @@
     addTime(minutes);
     input.value = "";
   }
-  
-  // 12. Attach event listeners to buttons and custom input
+
+  // Attach event listeners to buttons and custom input
   document.getElementById("add1").onclick = () => addTime(1);
   document.getElementById("add5").onclick = () => addTime(5);
   document.getElementById("add15").onclick = () => addTime(15);
@@ -230,11 +244,11 @@
       addCustomTime();
     }
   });
-  
-  // 13. On DOMContentLoaded, immediately update display from localStorage data
+
+  // On page load, immediately update display from localStorage data
   updateDisplay();
-  
-  // 14. On authentication state change, load Firestore data and update UI
+
+  // On authentication state change, load Firestore data and update UI
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       currentUserId = user.uid;
