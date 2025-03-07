@@ -10,7 +10,15 @@
     .timer-display { font-size: 2em; margin: 20px 0; }
     .analytics { margin-top: 20px; }
     .percentage { font-size: 1.5em; font-weight: bold; margin-top: 10px; }
-    .badge { margin-top: 10px; padding: 5px; background-color: #ffeb3b; border-radius: 4px; display: inline-block; margin-right: 5px; margin-bottom: 5px; }
+    .badge {
+      margin-top: 10px;
+      padding: 5px;
+      background-color: #ffeb3b;
+      border-radius: 4px;
+      display: inline-block;
+      margin-right: 5px;
+      margin-bottom: 5px;
+    }
     .custom-input { margin: 10px 5px; }
   </style>
 </head>
@@ -19,7 +27,7 @@
 <h2>Indonesian Comprehensible Input Timer</h2>
 
 <!-- Authentication Section -->
-<div id="authSection">
+<div id="authSection" style="display: block;">
   <button id="signInButton">Sign in with Google</button>
 </div>
 
@@ -47,12 +55,11 @@
 </div>
 
 <script type="module">
-  // Import Firebase modules from the CDN
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
   import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
   import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
-  // Firebase configuration (replace with your own config if needed)
+  // Replace with your Firebase config if needed
   const firebaseConfig = {
     apiKey: "AIzaSyC1Qwv5MIsxykfI8QNWXm7zy6A_yg7v2-k",
     authDomain: "cumulative-timer-app.firebaseapp.com",
@@ -69,7 +76,7 @@
   const db = getFirestore(appFirebase);
   const provider = new GoogleAuthProvider();
 
-  // Sign in with Google when button is clicked
+  // Sign in with Google
   document.getElementById("signInButton").onclick = () => {
     signInWithPopup(auth, provider)
       .then((result) => {
@@ -81,10 +88,10 @@
   };
 
   let currentUserId = null;
-  // Load timer history from localStorage initially (if available)
+  // Load existing history from localStorage
   let history = JSON.parse(localStorage.getItem('timerHistory')) || [];
 
-  // Define badge thresholds (spread over 60000 minutes = 1000 hours)
+  // Badges
   const badges = [
     { mins: 1800,  label: 'Pemula Ceria 😊' },
     { mins: 3550,  label: 'Pecinta Bahasa 💬' },
@@ -121,7 +128,6 @@
     { mins: 60000, label: 'Dewa Bahasa Sejati 🏆' }
   ];
 
-  // Save history to localStorage and Firestore
   function saveHistory() {
     localStorage.setItem('timerHistory', JSON.stringify(history));
     if (currentUserId) {
@@ -130,7 +136,6 @@
     }
   }
 
-  // Load history from Firestore
   async function loadHistoryFromFirestore() {
     if (!currentUserId) return;
     try {
@@ -147,7 +152,6 @@
     }
   }
 
-  // Compute daily streak: count consecutive days (including today) with at least one entry.
   function computeStreak() {
     const daysSet = new Set(history.map(entry => entry.date.split('T')[0]));
     let streak = 0;
@@ -164,36 +168,33 @@
     return streak;
   }
 
-  // Helper: Format minutes into hours and minutes
   function formatTime(minutes) {
     const hrs = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return hrs > 0 ? `${hrs} hr${hrs > 1 ? 's' : ''} ${mins} min${mins !== 1 ? 's' : ''}` : `${mins} min${mins !== 1 ? 's' : ''}`;
   }
 
-  // Update the UI: Timer, daily average, streak, progress, and badges
   function updateDisplay() {
     const totalMinutes = history.reduce((acc, entry) => acc + entry.minutes, 0);
     document.getElementById("timerDisplay").innerText = formatTime(totalMinutes);
-    
+
     const firstEntryDate = history.length ? new Date(history[0].date) : new Date();
     const daysPassed = Math.ceil((new Date() - firstEntryDate) / (1000 * 60 * 60 * 24)) || 1;
     const dailyAvg = Math.floor(totalMinutes / daysPassed);
     document.getElementById("dailyAvg").innerText = `Daily average: ${formatTime(dailyAvg)}/day`;
-    
+
     const streak = computeStreak();
     document.getElementById("streak").innerText = `Daily Streak: ${streak} day${streak !== 1 ? "s" : ""}`;
-    
+
     const percentage = ((totalMinutes / 60000) * 100).toFixed(2);
     document.getElementById("progressPercentage").innerText = `Progress: ${percentage}% of goal`;
-    
+
     const earnedBadges = badges.filter(badge => totalMinutes >= badge.mins);
     document.getElementById("badges").innerHTML = earnedBadges.map(badge => `<div class="badge">${badge.label}</div>`).join("");
-    
+
     saveHistory();
   }
 
-  // Functions to modify history and update the display
   function addTime(mins) {
     history.push({ minutes: mins, date: new Date().toISOString() });
     updateDisplay();
@@ -230,7 +231,6 @@
     input.value = "";
   }
 
-  // Attach event listeners to buttons and custom input
   document.getElementById("add1").onclick = () => addTime(1);
   document.getElementById("add5").onclick = () => addTime(5);
   document.getElementById("add15").onclick = () => addTime(15);
@@ -251,10 +251,18 @@
   // On authentication state change, load Firestore data and update UI
   onAuthStateChanged(auth, async (user) => {
     if (user) {
+      // Hide sign-in, show timer
+      document.getElementById("authSection").style.display = "none";
+      document.getElementById("timerSection").style.display = "block";
+
       currentUserId = user.uid;
       console.log("User ID:", currentUserId);
       await loadHistoryFromFirestore();
       updateDisplay();
+    } else {
+      // Show sign-in, hide timer
+      document.getElementById("authSection").style.display = "block";
+      document.getElementById("timerSection").style.display = "none";
     }
   });
 </script>
