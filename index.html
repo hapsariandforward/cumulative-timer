@@ -151,6 +151,23 @@
     .position-relative {
       position: relative;
     }
+
+    /* MAKE IT RESPONSIVE FOR MOBILE (slightly updated)*/
+    @media (max-width: 768px) {
+      .stopwatch-container {
+        position: static;
+        margin: 0 auto;
+        margin-top: 20px;
+        right: auto;
+        top: auto;
+        width: 100%;
+        max-width: 320px;
+      }
+      #timerSection::before,
+      #timerSection::after {
+        display: none; /* easier than messing with absolute positions on small screens */
+      }
+    }
   </style>
 </head>
 <body>
@@ -474,7 +491,7 @@
       currentUserId = user.uid;
       console.log("User ID:", currentUserId);
 
-      // If we already had a listener, unsubscribe from it.
+      // If we already had a listener, unsubscribe();
       if (unsubscribe) unsubscribe();
 
       // Subscribe to real-time updates for this user.
@@ -483,7 +500,6 @@
       // If user logs out or not signed in, show sign-in.
       document.getElementById("authSection").style.display = "block";
       document.getElementById("timerSection").style.display = "none";
-      // Unsubscribe from changes if we had a listener.
       if (unsubscribe) {
         unsubscribe();
         unsubscribe = null;
