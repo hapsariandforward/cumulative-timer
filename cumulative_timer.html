@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cumulative Input Timer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { padding: 10px; margin: 5px; }
+    .timer-display { font-size: 2em; margin: 20px 0; }
+    .analytics { margin-top: 20px; }
+    .percentage { font-size: 1.5em; font-weight: bold; margin-top: 10px; }
+    .badge { margin-top: 10px; padding: 5px; background-color: #ffeb3b; border-radius: 4px; display: inline-block; margin-right: 5px; margin-bottom: 5px; }
+    .custom-input { margin: 10px 5px; }
+  </style>
+</head>
+<body>
+
+<h2>Indonesian Comprehensible Input Timer</h2>
+
+<div class="timer-display" id="timerDisplay">0 mins</div>
+
+<div>
+  <button id="add1">+1 min</button>
+  <button id="add5">+5 mins</button>
+  <button id="add15">+15 mins</button>
+  <button id="add30">+30 mins</button>
+  <button id="add60">+1 hr</button>
+  <button id="undo">Undo</button>
+  <button id="reset">Reset Today</button>
+  <br>
+  <input class="custom-input" type="number" id="customTime" placeholder="Custom time in mins" min="1">
+  <button id="addCustom">Add Custom Time</button>
+</div>
+
+<div class="analytics">
+  <div class="percentage" id="progressPercentage"></div>
+  <p id="dailyAvg"></p>
+  <div id="streak"></div>
+  <div id="badges"></div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  let history = JSON.parse(localStorage.getItem('timerHistory')) || [];
+  
+  // 33 badges spread roughly across 60000 minutes (1000 hours)
+  // Thresholds are roughly spaced with slight variations.
+  const badges = [
+    { mins: 1800,  label: 'Pemula Ceria 😊' },
+    { mins: 3550,  label: 'Pecinta Bahasa 💬' },
+    { mins: 5450,  label: 'Orang Pintar 🧠' },
+    { mins: 7200,  label: 'Pelajar Semangat 📖' },
+    { mins: 8950,  label: 'Si Kritis 🔍' },
+    { mins: 10850, label: 'Dukun Muda 🔮' },
+    { mins: 12500, label: 'Raden Muda 🎩' },
+    { mins: 14450, label: 'Pak Guru Canggih 📚' },
+    { mins: 16100, label: 'Juragan Cerdas 💰' },
+    { mins: 18000, label: 'Pendekar Lincah ⚔️' },
+    { mins: 19750, label: 'Sultan Santai 👑' },
+    { mins: 21700, label: 'Raja Dangdut Keren 🎤' },
+    { mins: 23350, label: 'Garuda Jaya 🦅' },
+    { mins: 25250, label: 'Pahlawan Nusantara 🛡️' },
+    { mins: 26900, label: 'Legenda Jalanan 🌟' },
+    { mins: 28800, label: 'Mbah Mutiara 💎' },
+    { mins: 30550, label: 'Dewa Cerita 🏆' },
+    { mins: 32450, label: 'Sahabat Sejati 🤝' },
+    { mins: 34100, label: 'Pionir Digital 💻' },
+    { mins: 36000, label: 'Penyair Rindu 🎼' },
+    { mins: 37750, label: 'Jagoan Lokal 🥇' },
+    { mins: 39650, label: 'Ratu Kreatif 🎨' },
+    { mins: 41350, label: 'Bintang Fajar 🌅' },
+    { mins: 43200, label: 'Pengelana Hati 🚀' },
+    { mins: 44950, label: 'Singa Berkeliaran 🦁' },
+    { mins: 46850, label: 'Penyulut Semangat 🔥' },
+    { mins: 48550, label: 'Pejuang Lembut 💪' },
+    { mins: 50350, label: 'Cendekiawan Urban 🏙️' },
+    { mins: 52150, label: 'Mahakarya Hidup 🎭' },
+    { mins: 54000, label: 'Empu Inovasi ⚙️' },
+    { mins: 55750, label: 'Sang Visioner 🔭' },
+    { mins: 57550, label: 'Pangeran Progres 📈' },
+    { mins: 60000, label: 'Dewa Bahasa Sejati 🏆' }
+  ];
+
+  function saveHistory() {
+    localStorage.setItem('timerHistory', JSON.stringify(history));
+  }
+
+  function formatTime(minutes) {
+    const hrs = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return hrs > 0 ? `${hrs} hr${hrs > 1 ? 's' : ''} ${mins} min${mins !== 1 ? 's' : ''}` : `${mins} min${mins !== 1 ? 's' : ''}`;
+  }
+
+  function updateDisplay() {
+    const totalMinutes = history.reduce((acc, curr) => acc + curr.minutes, 0);
+    document.getElementById('timerDisplay').innerText = formatTime(totalMinutes);
+    updateAnalytics(totalMinutes);
+  }
+
+  function addTime(mins) {
+    history.push({ minutes: mins, date: new Date().toISOString() });
+    saveHistory();
+    updateDisplay();
+  }
+
+  function undoLast() {
+    if (history.length > 0) {
+      history.pop();
+      saveHistory();
+      updateDisplay();
+    }
+  }
+
+  function resetTimer() {
+    if (confirm('Are you sure you want to reset today\'s entries?')) {
+      const today = new Date().toISOString().split('T')[0];
+      history = history.filter(entry => entry.date.split('T')[0] !== today);
+      saveHistory();
+      updateDisplay();
+    }
+  }
+  
+  // Computes the current daily streak: number of consecutive days (including today) with at least one entry.
+  function computeStreak() {
+    // Create a set of unique dates (YYYY-MM-DD)
+    const daysSet = new Set(history.map(entry => entry.date.split('T')[0]));
+    let streak = 0;
+    let currentDate = new Date();
+    while (true) {
+      let dateStr = currentDate.toISOString().split('T')[0];
+      if (daysSet.has(dateStr)) {
+        streak++;
+        currentDate.setDate(currentDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }
+
+  function updateAnalytics(totalMinutes) {
+    const firstEntryDate = history.length ? new Date(history[0].date) : new Date();
+    const daysPassed = Math.ceil((new Date() - firstEntryDate) / (1000 * 60 * 60 * 24)) || 1;
+    const dailyAverageMinutes = totalMinutes / daysPassed;
+
+    document.getElementById('dailyAvg').innerText = `Daily average: ${formatTime(Math.floor(dailyAverageMinutes))}/day`;
+
+    // Calculate and display the daily streak.
+    const streak = computeStreak();
+    document.getElementById('streak').innerText = `Daily Streak: ${streak} day${streak !== 1 ? 's' : ''}`;
+
+    // Target is 60000 minutes (1000 hours)
+    const targetMinutes = 60000;
+    const percentage = ((totalMinutes / targetMinutes) * 100).toFixed(2);
+    document.getElementById('progressPercentage').innerText = `Progress: ${percentage}% of goal`;
+
+    const earnedBadges = badges.filter(badge => totalMinutes >= badge.mins);
+    document.getElementById('badges').innerHTML = earnedBadges.map(badge => `<div class="badge">${badge.label}</div>`).join('');
+  }
+
+  // Attach events to buttons
+  document.getElementById('add1').onclick = () => addTime(1);
+  document.getElementById('add5').onclick = () => addTime(5);
+  document.getElementById('add15').onclick = () => addTime(15);
+  document.getElementById('add30').onclick = () => addTime(30);
+  document.getElementById('add60').onclick = () => addTime(60);
+  document.getElementById('undo').onclick = undoLast;
+  document.getElementById('reset').onclick = resetTimer;
+  
+  // Attach event to custom time button and input (handle Enter key)
+  document.getElementById('addCustom').onclick = addCustomTime;
+  document.getElementById('customTime').addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      addCustomTime();
+    }
+  });
+  
+  function addCustomTime() {
+    const input = document.getElementById('customTime');
+    const customValue = input.value;
+    if (!customValue) {
+      alert("Please enter a custom time in minutes.");
+      return;
+    }
+    const minutes = parseInt(customValue, 10);
+    if (isNaN(minutes) || minutes <= 0) {
+      alert("Please enter a valid positive number of minutes.");
+      return;
+    }
+    addTime(minutes);
+    input.value = "";
+  }
+
+  updateDisplay();
+});
+</script>
+
+</body>
+</html>
