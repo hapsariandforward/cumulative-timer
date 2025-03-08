@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Cumulative Input Timer (Steampunk Edition)</title>
   <style>
     /* Use a steampunk-inspired font from Google Fonts */
@@ -12,8 +12,8 @@
       margin: 0;
       padding: 0;
       font-family: 'IM Fell English SC', serif;
-      /* Subtle repeating background with gears image */
       background-color: #f9f4ef;
+      /* Subtle repeating background with gears image */
       background-image: url('https://upload.wikimedia.org/wikipedia/commons/5/58/SteamPunkGearTile.png');
       background-size: 200px 200px;
       background-repeat: repeat;
@@ -90,8 +90,7 @@
       margin-top: 40px;
     }
 
-    /* By default (mobile-first), place stopwatch in flow below the main timer,
-       and hide corner gears so they don't overlap on small screens. */
+    /* By default (mobile-first), the stopwatch sits below the main timer. */
     #timerSection {
       margin-top: 20px;
       padding: 20px;
@@ -116,7 +115,6 @@
       background-color: #f3ecc2;
       border-radius: 8px;
       box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-      z-index: 2;
     }
 
     .stopwatch-display {
@@ -126,10 +124,7 @@
       color: #4d2c0c;
     }
 
-    /* Desktop Styles (min-width: 769px):
-       - Re-enable corner gears
-       - Absolutely position stopwatch to top-right
-    */
+    /* Larger screens: show corner gears, but keep the stopwatch under the timer. */
     @media (min-width: 769px) {
       #timerSection {
         margin-top: 20px;
@@ -154,13 +149,18 @@
         right: 0;
       }
 
+      /*
+      If you ever want to re-position the stopwatch on larger screens,
+      you could uncomment these lines (but that would move it away from the bottom).
+      
       .stopwatch-container {
         position: absolute;
         top: 20px;
         right: 20px;
         width: 220px;
-        margin: 0; /* remove the auto margins used on mobile */
+        margin: 0;
       }
+      */
     }
   </style>
 </head>
@@ -174,7 +174,7 @@
 
   <!-- Timer App Section (hidden until signed in) -->
   <div id="timerSection" style="display:none;">
-    <div class="timer-display" id="timerDisplay">0 mins</div>
+    <div class="timer-display" id="timerDisplay">0 menit</div>
     <div style="text-align: center;">
       <button id="add1">+1 min</button>
       <button id="add5">+5 mins</button>
@@ -183,10 +183,9 @@
       <button id="add60">+1 hr</button>
       <button id="undo">Undo</button>
       <button id="reset">Reset Today</button>
-      <!-- New Hard Reset button -->
       <button id="hardReset" style="background-color: #f99;">Hard Reset</button>
-      <br>
-      <input class="custom-input" type="number" id="customTime" placeholder="Mins" min="1">
+      <br />
+      <input class="custom-input" type="number" id="customTime" placeholder="Mins" min="1"/>
       <button id="addCustom">Add Custom Time</button>
     </div>
 
@@ -197,13 +196,13 @@
       <div id="badges"></div>
     </div>
 
-    <!-- Stopwatch widget -->
+    <!-- Stopwatch widget BELOW the main timer content -->
     <div class="stopwatch-container" id="stopwatchContainer">
       <div class="stopwatch-display" id="stopwatchDisplay">00:00</div>
       <button id="startStopwatch">Start</button>
       <button id="stopStopwatch">Stop</button>
       <button id="resetStopwatch">Reset</button>
-      <br>
+      <br />
       <button id="commitStopwatch">Commit Time</button>
     </div>
   </div>
@@ -215,12 +214,11 @@
   import {
     getFirestore,
     doc,
-    getDoc,
     setDoc,
     onSnapshot
   } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
-  // Replace with your own Firebase config if needed.
+  // Replace with your own Firebase config if needed
   const firebaseConfig = {
     apiKey: "AIzaSyC1Qwv5MIsxykfI8QNWXm7zy6A_yg7v2-k",
     authDomain: "cumulative-timer-app.firebaseapp.com",
@@ -240,24 +238,24 @@
   // Sign in with Google
   document.getElementById("signInButton").onclick = () => {
     signInWithPopup(auth, provider)
-      .then((result) => {
+      .then(result => {
         console.log("Signed in as:", result.user.displayName);
       })
-      .catch((error) => {
+      .catch(error => {
         console.error("Sign-in error:", error);
       });
   };
 
   let currentUserId = null;
   // Load existing history from localStorage
-  let history = JSON.parse(localStorage.getItem('timerHistory')) || [];
+  let history = JSON.parse(localStorage.getItem("timerHistory")) || [];
   let unsubscribe = null; // We'll store the Firestore listener unsubscribe function.
 
-  // Define 30 badges up to 60,000 minutes (1000 hours), all in Indonesian
+  // Define 30 badges up to 60,000 minutes (1000 hours)
   const badges = [
-    { mins: 30,    label: 'Baru Mulai 🐣' },
+    { mins: 30,    label: 'Baru Mula 🐣' },
     { mins: 60,    label: 'Pemanasan 🔥' },
-    { mins: 120,   label: 'Awal mula 💡' },
+    { mins: 120,   label: 'Tekun Awal 💡' },
     { mins: 300,   label: 'Makin Lancar 🏃' },
     { mins: 600,   label: 'Orang Pintar 🧠' },
     { mins: 900,   label: 'Rajin Belajar 📖' },
@@ -287,38 +285,44 @@
     { mins: 60000, label: 'Penguasa 1000 Jam 💯' },
   ];
 
-  // Save local changes to Firestore
+  // Save local changes (history array) to Firestore
   function saveHistory() {
-    localStorage.setItem('timerHistory', JSON.stringify(history));
+    localStorage.setItem("timerHistory", JSON.stringify(history));
     if (currentUserId) {
       const userDoc = doc(db, "timerData", currentUserId);
-      setDoc(userDoc, { history }).catch(err => console.error("Error saving to Firestore:", err));
+      setDoc(userDoc, { history }).catch(err =>
+        console.error("Error saving to Firestore:", err)
+      );
     }
   }
 
   // Listen for real-time changes using onSnapshot
   function subscribeToHistory(uid) {
     const userDoc = doc(db, "timerData", uid);
-    unsubscribe = onSnapshot(userDoc, (docSnap) => {
-      if (docSnap.exists()) {
-        history = docSnap.data().history || [];
-        localStorage.setItem('timerHistory', JSON.stringify(history));
-        updateDisplay(); // Refresh UI any time data changes in Firestore
-      } else {
-        console.log("No data in Firestore for this user yet.");
+    unsubscribe = onSnapshot(
+      userDoc,
+      docSnap => {
+        if (docSnap.exists()) {
+          history = docSnap.data().history || [];
+          localStorage.setItem("timerHistory", JSON.stringify(history));
+          updateDisplay(); // Refresh UI when data changes in Firestore
+        } else {
+          console.log("No data in Firestore for this user yet.");
+        }
+      },
+      err => {
+        console.error("Realtime listener error:", err);
       }
-    }, (err) => {
-      console.error("Realtime listener error:", err);
-    });
+    );
   }
 
   // Streak calculation
   function computeStreak() {
-    const daysSet = new Set(history.map(entry => entry.date.split('T')[0]));
+    const daysSet = new Set(history.map(entry => entry.date.split("T")[0]));
     let streak = 0;
     let currentDate = new Date();
     while (true) {
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = currentDate.toISOString().split("T")[0];
       if (daysSet.has(dateStr)) {
         streak++;
         currentDate.setDate(currentDate.getDate() - 1);
@@ -329,7 +333,7 @@
     return streak;
   }
 
-  // Format minutes into hours + minutes
+  // Format minutes to "X jam Y menit"
   function formatTime(minutes) {
     const hrs = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -340,29 +344,35 @@
     }
   }
 
-  // Update UI based on current "history"
+  // Update the UI based on the current "history"
   function updateDisplay() {
     const totalMinutes = history.reduce((acc, entry) => acc + entry.minutes, 0);
     document.getElementById("timerDisplay").innerText = formatTime(totalMinutes);
 
-    const firstEntryDate = history.length ? new Date(history[0].date) : new Date();
-    const daysPassed = Math.ceil((new Date() - firstEntryDate) / (1000 * 60 * 60 * 24)) || 1;
+    const firstEntryDate = history.length
+      ? new Date(history[0].date)
+      : new Date();
+    const daysPassed = Math.ceil(
+      (new Date() - firstEntryDate) / (1000 * 60 * 60 * 24)
+    ) || 1;
     const dailyAvg = Math.floor(totalMinutes / daysPassed);
-    document.getElementById("dailyAvg").innerText = `Rata-rata harian: ${formatTime(dailyAvg)}`;
+    document.getElementById("dailyAvg").innerText =
+      `Rata-rata harian: ${formatTime(dailyAvg)}`;
 
     const streak = computeStreak();
     document.getElementById("streak").innerText = `Streak Harian: ${streak} hari`;
 
-    // Calculate progress (comparing to 60,000 minutes, i.e. 1000 hours)
+    // Compare to 60,000 minutes (1000 hours) for progress
     const percentage = ((totalMinutes / 60000) * 100).toFixed(2);
-    document.getElementById("progressPercentage").innerText = `Progress: ${percentage}% dari 1000 jam`;
+    document.getElementById("progressPercentage").innerText =
+      `Progress: ${percentage}% dari 1000 jam`;
 
     // Determine which badges are earned
     const earnedBadges = badges.filter(b => totalMinutes >= b.mins);
     const badgesHtml = earnedBadges
       .map(b => `<span class="badge">${b.label}</span>`)
-      .join(' ');
-    document.getElementById("badges").innerHTML = badgesHtml || '';
+      .join(" ");
+    document.getElementById("badges").innerHTML = badgesHtml || "";
 
     saveHistory();
   }
@@ -388,7 +398,7 @@
     }
   }
 
-  // New function: Hard Reset for all history
+  // Hard Reset for all history
   function hardResetTimer() {
     if (confirm("Anda yakin ingin HARD RESET semua data? Ini akan menghapus seluruh riwayat!")) {
       history = [];
@@ -412,7 +422,7 @@
     input.value = "";
   }
 
-  // Hook up buttons
+  // Hook up the timer buttons
   document.getElementById("add1").onclick = () => addTime(1);
   document.getElementById("add5").onclick = () => addTime(5);
   document.getElementById("add15").onclick = () => addTime(15);
@@ -422,7 +432,7 @@
   document.getElementById("reset").onclick = resetTimer;
   document.getElementById("hardReset").onclick = hardResetTimer;
   document.getElementById("addCustom").onclick = addCustomTime;
-  document.getElementById("customTime").addEventListener("keydown", (event) => {
+  document.getElementById("customTime").addEventListener("keydown", event => {
     if (event.key === "Enter") {
       addCustomTime();
     }
@@ -489,13 +499,15 @@
   updateDisplay();
   updateStopwatchDisplay();
 
-  onAuthStateChanged(auth, (user) => {
+  // Listen for sign-in state changes
+  onAuthStateChanged(auth, user => {
     if (user) {
       document.getElementById("authSection").style.display = "none";
       document.getElementById("timerSection").style.display = "block";
       currentUserId = user.uid;
       console.log("User ID:", currentUserId);
 
+      // If there's already a Firestore listener, stop it, then re-subscribe
       if (unsubscribe) unsubscribe();
       subscribeToHistory(currentUserId);
     } else {
