@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cumulative Input Timer (Steampunk Edition)</title>
-  <!-- Additional small difference to ensure an update -->
   <style>
     /* Use a steampunk-inspired font from Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&display=swap');
@@ -184,6 +183,8 @@
       <button id="add60">+1 hr</button>
       <button id="undo">Undo</button>
       <button id="reset">Reset Today</button>
+      <!-- New Hard Reset button -->
+      <button id="hardReset" style="background-color: #f99;">Hard Reset</button>
       <br>
       <input class="custom-input" type="number" id="customTime" placeholder="Mins" min="1">
       <button id="addCustom">Add Custom Time</button>
@@ -219,7 +220,6 @@
     onSnapshot
   } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
-  // Slight difference: updated comment below
   // Replace with your own Firebase config if needed.
   const firebaseConfig = {
     apiKey: "AIzaSyC1Qwv5MIsxykfI8QNWXm7zy6A_yg7v2-k",
@@ -253,13 +253,38 @@
   let history = JSON.parse(localStorage.getItem('timerHistory')) || [];
   let unsubscribe = null; // We'll store the Firestore listener unsubscribe function.
 
-  // Define the badges
+  // Define 30 badges up to 60,000 minutes (1000 hours), all in Indonesian
   const badges = [
-    { mins: 1800,  label: 'Pemula Ceria 😊' },
-    { mins: 3550,  label: 'Pecinta Bahasa 💬' },
-    { mins: 5450,  label: 'Orang Pintar 🧠' },
-    { mins: 7200,  label: 'Pelajar Semangat 📖' },
-    // ... you can keep the rest ...
+    { mins: 30,    label: 'Baru Mula 🐣' },
+    { mins: 60,    label: 'Pemanasan 🔥' },
+    { mins: 120,   label: 'Tekun Awal 💡' },
+    { mins: 300,   label: 'Makin Lancar 🏃' },
+    { mins: 600,   label: 'Orang Pintar 🧠' },
+    { mins: 900,   label: 'Rajin Belajar 📖' },
+    { mins: 1200,  label: 'Pejuang Kosakata 🗣️' },
+    { mins: 1500,  label: 'Tukang Ngobrol 💬' },
+    { mins: 1800,  label: 'Makin Pro 🔧' },
+    { mins: 2400,  label: 'Pencari Ilmu 🔍' },
+    { mins: 3000,  label: 'Master Dasar 🎓' },
+    { mins: 3600,  label: 'Ahli Bicara 💼' },
+    { mins: 4200,  label: 'Merakyat 👥' },
+    { mins: 5000,  label: 'Penasehat Bahasa ⚖️' },
+    { mins: 6000,  label: 'Orang Sakti 🪄' },
+    { mins: 7000,  label: 'Dukun Terpercaya 🔮' },
+    { mins: 8000,  label: 'Tetua Bahasa 🏺' },
+    { mins: 9000,  label: 'Cendekiawan 🏅' },
+    { mins: 10000, label: 'Pawang Kosakata 🐘' },
+    { mins: 12000, label: 'Kesatria Majapahit ⚔️' },
+    { mins: 14000, label: 'Sang Begawan 🌄' },
+    { mins: 16000, label: 'Orator Handal 🎤' },
+    { mins: 18000, label: 'Ki Semar Penutur 🗿' },
+    { mins: 20000, label: 'Orang Bijak 🌳' },
+    { mins: 24000, label: 'Guru Bangsa 📜' },
+    { mins: 30000, label: 'Majapahit Ultra 🔱' },
+    { mins: 40000, label: 'Orang Sakti Mandraguna 🔆' },
+    { mins: 50000, label: 'Sultan Kebahasaan 👑' },
+    { mins: 55000, label: 'Raja Sejagad 🏰' },
+    { mins: 60000, label: 'Penguasa 1000 Jam 💯' },
   ];
 
   // Save local changes to Firestore
@@ -308,9 +333,11 @@
   function formatTime(minutes) {
     const hrs = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return hrs > 0
-      ? `${hrs} hr${hrs > 1 ? 's' : ''} ${mins} min${mins !== 1 ? 's' : ''}`
-      : `${mins} min${mins !== 1 ? 's' : ''}`;
+    if (hrs > 0) {
+      return `${hrs} jam ${mins} menit`;
+    } else {
+      return `${mins} menit`;
+    }
   }
 
   // Update UI based on current "history"
@@ -321,16 +348,22 @@
     const firstEntryDate = history.length ? new Date(history[0].date) : new Date();
     const daysPassed = Math.ceil((new Date() - firstEntryDate) / (1000 * 60 * 60 * 24)) || 1;
     const dailyAvg = Math.floor(totalMinutes / daysPassed);
-    document.getElementById("dailyAvg").innerText = `Daily average: ${formatTime(dailyAvg)}/day`;
+    document.getElementById("dailyAvg").innerText = `Rata-rata harian: ${formatTime(dailyAvg)}`;
 
     const streak = computeStreak();
-    document.getElementById("streak").innerText = `Daily Streak: ${streak} day${streak !== 1 ? "s" : ""}`;
+    document.getElementById("streak").innerText = `Streak Harian: ${streak} hari`;
 
+    // Calculate progress (comparing to 60,000 minutes, i.e. 1000 hours)
     const percentage = ((totalMinutes / 60000) * 100).toFixed(2);
-    document.getElementById("progressPercentage").innerText = `Progress: ${percentage}% of goal`;
+    document.getElementById("progressPercentage").innerText = `Progress: ${percentage}% dari 1000 jam`;
 
-    // Possibly add the rest of your badge thresholds here
-    // ...
+    // Determine which badges are earned
+    const earnedBadges = badges.filter(b => totalMinutes >= b.mins);
+    const badgesHtml = earnedBadges
+      .map(b => `<span class="badge">${b.label}</span>`)
+      .join(' ');
+    document.getElementById("badges").innerHTML = badgesHtml || '';
+
     saveHistory();
   }
 
@@ -348,9 +381,17 @@
   }
 
   function resetTimer() {
-    if (confirm("Are you sure you want to reset today's entries?")) {
+    if (confirm("Anda yakin ingin reset catatan hari ini saja?")) {
       const today = new Date().toISOString().split("T")[0];
       history = history.filter(entry => entry.date.split("T")[0] !== today);
+      updateDisplay();
+    }
+  }
+
+  // New function: Hard Reset for all history
+  function hardResetTimer() {
+    if (confirm("Anda yakin ingin HARD RESET semua data? Ini akan menghapus seluruh riwayat!")) {
+      history = [];
       updateDisplay();
     }
   }
@@ -359,12 +400,12 @@
     const input = document.getElementById("customTime");
     const customValue = input.value;
     if (!customValue) {
-      alert("Please enter a custom time in minutes.");
+      alert("Masukkan waktu kustom dalam menit.");
       return;
     }
     const minutes = parseInt(customValue, 10);
     if (isNaN(minutes) || minutes <= 0) {
-      alert("Please enter a valid positive number of minutes.");
+      alert("Masukkan angka menit yang valid.");
       return;
     }
     addTime(minutes);
@@ -379,6 +420,7 @@
   document.getElementById("add60").onclick = () => addTime(60);
   document.getElementById("undo").onclick = undoLast;
   document.getElementById("reset").onclick = resetTimer;
+  document.getElementById("hardReset").onclick = hardResetTimer;
   document.getElementById("addCustom").onclick = addCustomTime;
   document.getElementById("customTime").addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -432,9 +474,9 @@
     const minutes = Math.floor(stopwatchSeconds / 60);
     if (minutes > 0) {
       addTime(minutes);
-      alert(`Committed ${minutes} minute(s) to your overall timer.`);
+      alert(`Waktu ${minutes} menit telah ditambahkan ke timer utama.`);
     } else {
-      alert("Stopwatch time is less than 1 minute; not added.");
+      alert("Kurang dari 1 menit, tidak ditambahkan.");
     }
   }
 
